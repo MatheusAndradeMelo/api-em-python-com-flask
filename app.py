@@ -4,6 +4,7 @@ from blacklist import BLACKLIST
 from resources.hotel import Hoteis, Hotel
 from resources.usuario import UserLogin, Usuario, UserRegister, UserLogout
 from flask_jwt_extended import JWTManager
+from resources.site import Site, Sites
 
 # iniciando o flask
 app = Flask(__name__)
@@ -37,6 +38,8 @@ api.add_resource(Usuario, '/usuarios/<int:user_id>')
 api.add_resource(UserRegister, '/cadastro')
 api.add_resource(UserLogin, '/login')
 api.add_resource(UserLogout, '/logout')
+api.add_resource(Sites, '/sites')
+api.add_resource(Site, '/sites/<string:url>')
 
 # configuração básica do flask
 if __name__ == 'main':

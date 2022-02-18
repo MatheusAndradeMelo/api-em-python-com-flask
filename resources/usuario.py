@@ -1,3 +1,5 @@
+import traceback
+from flask import make_response, render_template
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import create_access_token, jwt_required, get_raw_jwt
 from werkzeug.security import safe_str_cmp
@@ -8,6 +10,9 @@ from models.usuario import UsuarioModel
 atributos = reqparse.RequestParser()
 atributos.add_argument('login', type=str, required=True, help='The field login cannot be left blank.')
 atributos.add_argument('senha', type=str, required=True, help='The field senha cannot be left blank.')
+atributos.add_argument('email', type=str)
+atributos.add_argument('ativado', type=bool)
+
 
 class Usuario(Resource):
    
@@ -35,12 +40,24 @@ class UserRegister(Resource):
     # /cadastro
     def post(self):
         dados = atributos.parse_args()
+        if not dados.get('email') or dados.get('email') is None:
+            return {'message': 'The field email cannot be left blank.'}, 400
+        
+        if UsuarioModel.find_by_email(dados['email']):
+            return {'message': 'The email {} already exists.'.format(dados['email'])}, 400
         
         if UsuarioModel.find_by_login(dados['login']):
-            return {'message': 'The login {} already exists.'.format(dados['login'])}
+            return {'message': 'The login {} already exists.'.format(dados['login'])}, 400
         
         user = UsuarioModel(**dados)
-        user.save_user()
+        user.ativado = False
+        try:    
+            user.save_user()
+            user.send_confirmation_email()
+        except:
+            user.delete_user()
+            traceback.print_exc()
+            return {'message': 'An internal server error has ocurred.'},500
         return {'message': 'User created successfully.'}, 201 #Created
     
 class UserLogin(Resource):
@@ -52,8 +69,10 @@ class UserLogin(Resource):
         user = UsuarioModel.find_by_login(dados['login'])
         
         if user and safe_str_cmp(user.senha, dados['senha']):
-            token_de_acesso = create_access_token(identity=user.user_id)
-            return {'access_token': token_de_acesso}, 200
+            if user.ativado:
+                token_de_acesso = create_access_token(identity=user.user_id)
+                return {'access_token': token_de_acesso}, 200
+            return {'message': 'User not confirmed.'}, 400
         return {'message': 'The username or password is incorrect.'}, 401
     
 # instalar o jwt - pip install Flask-JWT-Extended
@@ -65,4 +84,18 @@ class UserLogout(Resource):
         jwt_id = get_raw_jwt()['jti'] # Identificador do token
         BLACKLIST.add(jwt_id)
         return {'message': 'Logge out successfuly.'}, 200
-            
+    
+class UserConfirm(Resource):
+    # raiz do site/confirmacao/{user_id}
+    @classmethod
+    def get(cls,user_id):
+        user = UsuarioModel.find_user(user_id)
+        
+        if not user:
+            return {"message": "User id '{}' not found.".format(user_id)}, 404
+        
+        user.ativado = True
+        user.save_user()
+        #return {"message": "User id '{}' confirmed successfully.".format(user_id)}, 200
+        headers = {'Content-type': 'text/html'}
+        return make_response(render_template('user_confirm.html', email=user.email, usuario=user.login), 200)     

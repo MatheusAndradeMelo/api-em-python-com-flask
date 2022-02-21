@@ -5,6 +5,7 @@ from resources.hotel import Hoteis, Hotel
 from resources.usuario import UserConfirm, UserLogin, Usuario, UserRegister, UserLogout
 from flask_jwt_extended import JWTManager
 from resources.site import Site, Sites
+from config_json import *
 
 # iniciando o flask
 app = Flask(__name__)
@@ -12,9 +13,9 @@ app = Flask(__name__)
 #faz todo geranciamento da api
 api = Api(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///banco.db' # pode substituir o caminho para outros bancos como postgresql por ex
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}' # pode substituir o caminho para outros bancos como postgresql por ex
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # para parar de ficar dando aviso
-app.config['JWT_SECRET_KEY'] = 'DontTellAnyone'
+app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_BLACKLIST_ENABLED'] = True
 jwt = JWTManager(app)
 
